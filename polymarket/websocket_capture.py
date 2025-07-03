@@ -8,7 +8,7 @@ import os
 import threading
 from enum import Enum
 from dotenv import load_dotenv
-from market_info import get_hourly_market_info_for
+from polymarket.market_info import get_hourly_market_info_for
 from config_manager import load_logging_config
 from constants import POLYMARKET_WSS_URL
 
@@ -102,15 +102,7 @@ def main():
         logger.warning("More than 1 market read, got {}", len(market_info))
 
     asset_ids = market_info[0].token_ids
-    logger.debug(
-        "Opening websocket connection for asset_ids={} with type {}",
-        asset_ids,
-        type(asset_ids),
-    )
-    assert asset_ids == [
-        "64014407071173554650750271910505804043936597106769212755931625753599668120313",
-        "106475745937639014510786283316013020398281681386075484718751158546497590415813",
-    ]
+    logger.debug("Opening websocket connection for asset_ids={}", asset_ids)
 
     auth = {"apiKey": api_key, "secret": api_secret, "passphrase": api_passphrase}
 

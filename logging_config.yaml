@@ -6,3 +6,5 @@ handlers:
     level: "DEBUG"
     enqueue: true
     serialize: false
+    rotation: "1 hour"
+    compression: "gz"
