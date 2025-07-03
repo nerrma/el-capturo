@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 import os
+
+from dotenv import load_dotenv
 from py_clob_client.client import ClobClient
 from py_clob_client.constants import POLYGON
-from dotenv import load_dotenv
 
 load_dotenv("keys.env")
 

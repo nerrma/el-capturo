@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 
-from datetime import datetime, timedelta
-import requests
-import pytz
-from dataclasses import dataclass
-from loguru import logger
 import json
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import List
+
+import pytz
+import requests
 from constants import POLYMARKET_GAMMA_URL
+from loguru import logger
 
 
 @dataclass

@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 
-from websocket import WebSocketApp, WebSocket
 import json
-from loguru import logger
-import time
 import os
 import threading
+import time
 from enum import Enum
-from dotenv import load_dotenv
-from polymarket.market_info import get_hourly_market_info_for
+
 from config_manager import load_logging_config
 from constants import POLYMARKET_WSS_URL
+from dotenv import load_dotenv
+from loguru import logger
+from websocket import WebSocket, WebSocketApp
+
+from polymarket.market_info import get_hourly_market_info_for
 
 
 class Channel(Enum):

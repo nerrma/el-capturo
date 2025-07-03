@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
-from constants import LOG_CONFIG_FILE
-from loguru import logger
 import sys
+
 import yaml
+from loguru import logger
+
+from constants import LOG_CONFIG_FILE
 
 
 def load_logging_config():
