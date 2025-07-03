@@ -1,0 +1,8 @@
+handlers:
+  - sink: sys.stderr
+    level: "INFO"
+    format: '[{time}] {message}'
+  - sink: debug.log
+    level: "DEBUG"
+    enqueue: true
+    serialize: false
