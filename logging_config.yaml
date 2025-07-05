@@ -3,7 +3,7 @@ handlers:
     level: "INFO"
     format: '[{time}] {message}'
   - sink: debug.log
-    level: "DEBUG"
+    level: "INFO"
     enqueue: true
     serialize: false
     rotation: "1 hour"

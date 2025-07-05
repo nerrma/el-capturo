@@ -4,6 +4,8 @@ import json
 import os
 import threading
 import time
+from collections import defaultdict
+from functools import reduce
 from enum import Enum
 
 from config_manager import load_logging_config
@@ -11,9 +13,11 @@ from constants import POLYMARKET_WSS_URL
 from dotenv import load_dotenv
 from loguru import logger
 from websocket import WebSocket, WebSocketApp
+from writers.parquet_writer import ParquetWriter
 
-from polymarket.market_info import get_hourly_market_info_for
 from polymarket.events.parsers import parse_book_event, parse_price_change_event
+from polymarket.market_info import get_hourly_market_info_for
+from polymarket.orderbook.orderbook import Orderbook
 
 
 class Channel(Enum):
@@ -22,10 +26,10 @@ class Channel(Enum):
 
 
 class WebSocketOrderBook:
-    def __init__(self, channel_type, url, asset_ids, auth):
+    def __init__(self, channel_type, url, tokens, auth):
         self.channel_type = channel_type
         self.url = url
-        self.asset_ids = asset_ids
+        self.tokens = {t.token_id: t for t in tokens}
         self.auth = auth
         self.markets = None
         furl = url + "/ws/" + channel_type.value
@@ -36,17 +40,19 @@ class WebSocketOrderBook:
             on_close=self.on_close,
             on_open=self.on_open,
         )
-        self.orderbook = {}  # TODO: track internal orderbook state and apply `Changes`
+        self.orderbooks = defaultdict(Orderbook)  # orderbooks per asset_id
         self.exit_code = 0
+        self.writer = ParquetWriter()
         self.ping_thread = None
 
     def on_message(self, ws: WebSocketApp, message: str):
-        logger.spam("Got message: {}", message)
+        logger.debug("Got message: {}", message)
 
         if message == "PONG":
             logger.debug("Got PONG")
             return
 
+        # NOTE: we get [BookEvent, LastTradePrice] pairs but throw the latter event away
         message = json.loads(message)[0]
 
         match message["event_type"]:
@@ -61,7 +67,26 @@ class WebSocketOrderBook:
                 logger.warn("Unknown message type: {}", message["event_type"])
 
         if event:
-            logger.debug("Parsed event {}", event, serialize=True)
+            logger.info("Parsed event {}", event, serialize=True)
+
+            self.orderbooks[message["asset_id"]].apply_event(event)
+            serialized_book = self.orderbooks[message["asset_id"]].serialize()
+            logger.debug(
+                "Orderbook for {} is {}",
+                message["asset_id"],
+                serialized_book,
+                serialize=True,
+            )
+
+            self.writer.write(
+                {
+                    "timestamp": message["timestamp"],
+                    "asset_id": message["asset_id"],
+                    "event_type": message["event_type"],
+                    "asset_name": self.tokens[message["asset_id"]].token_name,
+                }
+                | reduce(lambda x, y: x | y, serialized_book, {})
+            )
 
     def on_error(self, ws: WebSocketApp, error: str):
         if error:
@@ -80,7 +105,10 @@ class WebSocketOrderBook:
         match self.channel_type:
             case Channel.MARKET_CHANNEL:
                 req = json.dumps(
-                    {"assets_ids": self.asset_ids, "type": self.channel_type.value}
+                    {
+                        "assets_ids": list(self.tokens.keys()),
+                        "type": self.channel_type.value,
+                    }
                 )
             case Channel.USER_CHANNEL:
                 assert self.auth
@@ -125,13 +153,11 @@ def main():
     if len(market_info) > 1:
         logger.warning("More than 1 market read, got {}", len(market_info))
 
-    asset_ids = [t.token_id for t in market_info[0].tokens]
-    logger.debug("Opening websocket connection for asset_ids={}", asset_ids)
-
+    tokens = market_info[0].tokens
     auth = {"apiKey": api_key, "secret": api_secret, "passphrase": api_passphrase}
 
     market_connection = WebSocketOrderBook(
-        Channel.MARKET_CHANNEL, POLYMARKET_WSS_URL, asset_ids, auth
+        Channel.MARKET_CHANNEL, POLYMARKET_WSS_URL, tokens, auth
     )
 
     market_connection.run()
