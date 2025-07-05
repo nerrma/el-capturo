@@ -37,4 +37,4 @@ You can now run a Polymarket capture by doing:
 $ uv run python -m polymarket.websocket_capture
 ```
 
-This will capture market data for the hourly Bitcoin market by default. Refer to [polymarket/market_info.py](polymarket/market_info.py) for info on how the information for the market is generated. The important thing here are the `token_ids` which we listen to for information on the relevant market.
+This will capture market data for the hourly Bitcoin market by default and output them to Parquet files named `cap-{seq_no}-{up|down}.parquet` where the sequence numbers are in order for the `up` and `down` tokens. Refer to [polymarket/market_info.py](polymarket/market_info.py) for info on how the information for the market is generated. The important thing here are the `token_ids` which we listen to for information on the relevant market.
