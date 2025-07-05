@@ -80,7 +80,7 @@ class WebSocketOrderBook:
 
             self.writer.write(
                 {
-                    "timestamp": message["timestamp"],
+                    "timestamp": event.timestamp,
                     "asset_id": message["asset_id"],
                     "event_type": message["event_type"],
                     "asset_name": self.tokens[message["asset_id"]].token_name,
