@@ -64,7 +64,7 @@ class WebSocketOrderBook:
                 event = None
                 pass
             case _:
-                logger.warn("Unknown message type: {}", message["event_type"])
+                logger.warning("Unknown message type: {}", message["event_type"])
 
         if event:
             logger.info("Parsed event {}", event, serialize=True)

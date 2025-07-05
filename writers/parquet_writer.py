@@ -12,6 +12,7 @@ class ParquetWriter:
         self.data = pl.LazyFrame()
         self.buffer_size = buffer_size
         self.asset_name_to_data = defaultdict(list)
+        self.iterations = defaultdict(int)
 
     def __del__(self):
         self._flush_data()
@@ -19,9 +20,10 @@ class ParquetWriter:
     def _flush_data(self):
         logger.info("Flushing Parquet data")
         for asset_name, entry_list in self.asset_name_to_data.items():
+            self.iterations[asset_name] += 1
             asset_data = pl.LazyFrame(entry_list)
             asset_data = asset_data.collect().write_parquet(
-                f"cap-{asset_name.lower()}.parquet"
+                f"cap-{self.iterations[asset_name]}-{asset_name.lower()}.parquet"
             )
         self.asset_name_to_data = defaultdict(list)
 
