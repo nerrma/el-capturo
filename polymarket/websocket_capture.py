@@ -13,6 +13,7 @@ from loguru import logger
 from websocket import WebSocket, WebSocketApp
 
 from polymarket.market_info import get_hourly_market_info_for
+from polymarket.events.parsers import parse_book_event, parse_price_change_event
 
 
 class Channel(Enum):
@@ -35,16 +36,37 @@ class WebSocketOrderBook:
             on_close=self.on_close,
             on_open=self.on_open,
         )
-        self.orderbooks = {}
+        self.orderbook = {}  # TODO: track internal orderbook state and apply `Changes`
         self.exit_code = 0
         self.ping_thread = None
 
     def on_message(self, ws: WebSocketApp, message: str):
-        logger.debug("Got message: {}", message, serialize=True)
+        logger.spam("Got message: {}", message)
+
+        if message == "PONG":
+            logger.debug("Got PONG")
+            return
+
+        message = json.loads(message)[0]
+
+        match message["event_type"]:
+            case "book":
+                event = parse_book_event(message)
+            case "price_change":
+                event = parse_price_change_event(message)
+            case "tick_size_change":
+                event = None
+                pass
+            case _:
+                logger.warn("Unknown message type: {}", message["event_type"])
+
+        if event:
+            logger.debug("Parsed event {}", event, serialize=True)
 
     def on_error(self, ws: WebSocketApp, error: str):
-        logger.error("Error: {}", error)
-        self.exit_code = 1
+        if error:
+            logger.error("Error: {}", error)
+            self.exit_code = 1
 
     def on_close(self, ws: WebSocketApp, close_status_code: int, close_msg: str):
         logger.info("Closing connection.")
@@ -103,7 +125,7 @@ def main():
     if len(market_info) > 1:
         logger.warning("More than 1 market read, got {}", len(market_info))
 
-    asset_ids = market_info[0].token_ids
+    asset_ids = [t.token_id for t in market_info[0].tokens]
     logger.debug("Opening websocket connection for asset_ids={}", asset_ids)
 
     auth = {"apiKey": api_key, "secret": api_secret, "passphrase": api_passphrase}

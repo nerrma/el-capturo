@@ -12,25 +12,28 @@ from loguru import logger
 
 
 @dataclass
+class Token:
+    token_name: str
+    token_id: str
+
+
+@dataclass
 class MarketInfo:
     condition_id: str
-    token_ids: List[str]
+    tokens: List[Token]
 
 
 def get_hourly_market_info_for(market="bitcoin-up-or-down") -> List[MarketInfo]:
-    # Get current time in Eastern Time
+    # make slug in the form "market-{month_str}-{day}-{hour}-et"
     now = datetime.now(pytz.timezone("US/Eastern"))
 
-    # Round up to the next hour
     now = now.replace(minute=0, second=0, microsecond=0)
 
-    # Format components
     month_str = now.strftime("%B").lower()
     day = now.day
     hour_12 = now.strftime("%I").lstrip("0")
     am_pm = now.strftime("%p").lower()
 
-    # Compose slug
     slug = f"{market}-{month_str}-{day}-{hour_12}{am_pm}-et"
     logger.debug("Generated market slug {}", slug)
 
@@ -42,7 +45,13 @@ def get_hourly_market_info_for(market="bitcoin-up-or-down") -> List[MarketInfo]:
     return [
         MarketInfo(
             condition_id=market.get("conditionId"),
-            token_ids=json.loads(market.get("clobTokenIds")),
+            tokens=[
+                Token(token_name=o, token_id=i)
+                for o, i in zip(
+                    json.loads(market.get("outcomes")),
+                    json.loads(market.get("clobTokenIds")),
+                )
+            ],
         )
         for market in markets
     ]

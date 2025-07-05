@@ -14,6 +14,7 @@ wheels/
 *.keys
 *.priv
 *.pub
+*.el
 
 # data
 *.csv
@@ -21,3 +22,5 @@ wheels/
 *.np
 *.npz
 *.log
+*.gz
+*.tar
