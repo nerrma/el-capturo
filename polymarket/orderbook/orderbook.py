@@ -43,13 +43,11 @@ class Orderbook:
                 {f"bid_{i + 1}_price": b.price, f"bid_{i + 1}_size": b.size}
                 for i, b in enumerate(list(self.bids.values())[:levels])
             ],
+            *[
+                {f"ask_{i + 1}_price": a.price, f"ask_{i + 1}_size": a.size}
+                for i, a in enumerate(list(self.asks.values())[:levels])
+            ],
         ]
-
-    # def serialize(self, levels=5):
-    #     return {
-    #         "bids": list(self.bids.values())[:levels],
-    #         "asks": list(self.asks.values())[:levels],
-    #     }
 
     def __repr__(self):
         bids_str = ", ".join(f"{price}: {order}" for price, order in self.bids.items())

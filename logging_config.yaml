@@ -1,7 +1,7 @@
 handlers:
   - sink: sys.stderr
     level: "INFO"
-    format: '[{time}] {message}'
+    format: "[{time}] {message}"
   - sink: debug.log
     level: "INFO"
     enqueue: true

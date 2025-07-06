@@ -4,18 +4,23 @@ import json
 import os
 import threading
 import time
+from datetime import datetime, timezone
 from collections import defaultdict
 from functools import reduce
 from enum import Enum
 
 from config_manager import load_logging_config
 from constants import POLYMARKET_WSS_URL
-from dotenv import load_dotenv
 from loguru import logger
-from websocket import WebSocket, WebSocketApp
+from websocket import WebSocketApp
 from writers.parquet_writer import ParquetWriter
 
-from polymarket.events.parsers import parse_book_event, parse_price_change_event
+from polymarket.events.parsers import (
+    parse_book_event,
+    parse_price_change_event,
+    parse_last_trade_price,
+)
+from polymarket.events.types import BookEvent, PriceChangeEvent, LastTradePrice
 from polymarket.market_info import get_hourly_market_info_for
 from polymarket.orderbook.orderbook import Orderbook
 
@@ -52,41 +57,61 @@ class WebSocketOrderBook:
             logger.debug("Got PONG")
             return
 
-        # NOTE: we get [BookEvent, LastTradePrice] pairs but throw the latter event away
-        message = json.loads(message)[0]
+        messages = json.loads(message)
+        logger.debug("evaluated to {}", messages)
 
-        match message["event_type"]:
-            case "book":
-                event = parse_book_event(message)
-            case "price_change":
-                event = parse_price_change_event(message)
-            case "tick_size_change":
-                event = None
-                pass
-            case _:
-                logger.warning("Unknown message type: {}", message["event_type"])
+        for message in messages:
+            match message["event_type"]:
+                case "book":
+                    event = parse_book_event(message)
+                case "price_change":
+                    event = parse_price_change_event(message)
+                case "tick_size_change":
+                    event = None
+                    pass
+                case "last_trade_price":
+                    event = parse_last_trade_price(message)
+                    pass
+                case _:
+                    logger.warning("Unknown message type: {}", message["event_type"])
+                    return
 
-        if event:
-            logger.info("Parsed event {}", event, serialize=True)
+            logger.debug("Parsed event {}", event, serialize=True)
+            match event:
+                case BookEvent() | PriceChangeEvent():
+                    self.orderbooks[message["asset_id"]].apply_event(event)
+                    serialized_book = self.orderbooks[message["asset_id"]].serialize()
+                    logger.debug(
+                        "Orderbook for {} is {}",
+                        message["asset_id"],
+                        serialized_book,
+                        serialize=True,
+                    )
 
-            self.orderbooks[message["asset_id"]].apply_event(event)
-            serialized_book = self.orderbooks[message["asset_id"]].serialize()
-            logger.debug(
-                "Orderbook for {} is {}",
-                message["asset_id"],
-                serialized_book,
-                serialize=True,
-            )
-
-            self.writer.write(
-                {
-                    "timestamp": event.timestamp,
-                    "asset_id": message["asset_id"],
-                    "event_type": message["event_type"],
-                    "asset_name": self.tokens[message["asset_id"]].token_name,
-                }
-                | reduce(lambda x, y: x | y, serialized_book, {})
-            )
+                    self.writer.write(
+                        data_type="orderbook",
+                        data={
+                            "timestamp": datetime.now(timezone.utc),
+                            "exchange_timestamp": event.timestamp,
+                            "asset_id": message["asset_id"],
+                            "asset_name": self.tokens[message["asset_id"]].token_name,
+                            "event_type": message["event_type"],
+                        }
+                        | reduce(lambda x, y: x | y, serialized_book, {}),
+                    )
+                case LastTradePrice():
+                    self.writer.write(
+                        data_type="trade",
+                        data={
+                            "timestamp": datetime.now(timezone.utc),
+                            "exchange_timestamp": event.timestamp,
+                            "asset_id": message["asset_id"],
+                            "asset_name": self.tokens[message["asset_id"]].token_name,
+                            "side": event.side.value,
+                            "price": event.price,
+                            "size": event.size,
+                        },
+                    )
 
     def on_error(self, ws: WebSocketApp, error: str):
         if error:

@@ -55,4 +55,13 @@ class PriceChangeEvent:
     timestamp: datetime
 
 
-Event = BookEvent | PriceChangeEvent
+@dataclass
+class LastTradePrice:
+    asset: Token
+    side: Side
+    price: float
+    size: float
+    timestamp: datetime
+
+
+Event = BookEvent | PriceChangeEvent | LastTradePrice

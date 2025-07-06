@@ -11,6 +11,7 @@ dependencies = [
     "py-clob-client>=0.23.0",
     "pytz>=2025.2",
     "pyyaml>=6.0.2",
+    "tqdm>=4.67.1",
     "websocket>=0.2.1",
     "websocket-client>=1.8.0",
 ]
