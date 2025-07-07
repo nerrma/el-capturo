@@ -26,7 +26,7 @@ class ParquetWriter:
         self.iterations[asset_name][data_type] += 1
         asset_data = pl.LazyFrame(self.asset_name_to_data[asset_name][data_type])
         asset_data = asset_data.collect().write_parquet(
-            f"{data_type.lower()}-{self.iterations[asset_name][data_type]}-{asset_name.lower()}.parquet",
+            f"{asset_name.lower()}-{data_type.lower()}-{self.iterations[asset_name][data_type]}.parquet",
             compression="zstd",
         )
 

@@ -19,6 +19,7 @@ class Token:
 
 @dataclass
 class MarketInfo:
+    slug: str
     condition_id: str
     tokens: List[Token]
 
@@ -44,6 +45,7 @@ def get_hourly_market_info_for(market="bitcoin-up-or-down") -> List[MarketInfo]:
 
     return [
         MarketInfo(
+            slug=slug,
             condition_id=market.get("conditionId"),
             tokens=[
                 Token(token_name=o, token_id=i)

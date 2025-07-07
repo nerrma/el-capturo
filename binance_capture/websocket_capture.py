@@ -14,7 +14,7 @@ class WebsocketOrderBookCapture:
         self.writer = ParquetWriter(buffer_size=1e4)
 
     def on_close(self, _):
-        logger.info("Closing connection.")
+        logger.debug("Closing connection.")
 
         del (
             self.writer

@@ -6,3 +6,5 @@ POLYMARKET_WSS_URL = "wss://ws-subscriptions-clob.polymarket.com"
 
 # configs
 LOG_CONFIG_FILE = "logging_config.yaml"
+
+TIMER_INTERVAL_SECONDS = 10

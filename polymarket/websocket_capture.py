@@ -10,7 +10,7 @@ from enum import Enum
 from functools import reduce
 
 from config_manager import load_logging_config
-from constants import POLYMARKET_WSS_URL
+from constants import POLYMARKET_WSS_URL, TIMER_INTERVAL_SECONDS
 from loguru import logger
 from websocket import WebSocketApp, WebSocketConnectionClosedException
 from writers.parquet_writer import ParquetWriter
@@ -21,7 +21,7 @@ from polymarket.events.parsers import (
     parse_price_change_event,
 )
 from polymarket.events.types import BookEvent, LastTradePrice, PriceChangeEvent
-from polymarket.market_info import get_hourly_market_info_for
+from polymarket.market_info import get_hourly_market_info_for, MarketInfo
 from polymarket.orderbook.orderbook import Orderbook
 
 
@@ -119,10 +119,10 @@ class WebsocketOrderBookCapture:
             self.exit_code = 1
 
     def on_close(self, ws: WebSocketApp, close_status_code: int, close_msg: str):
-        logger.info("Closing connection.")
+        logger.debug("Closing connection.")
 
         if self.ping_thread:
-            self.ping_thread.join()
+            self.ping_thread.cancel()
 
         del self.writer
 
@@ -151,19 +151,21 @@ class WebsocketOrderBookCapture:
         logger.debug("Sending websocket request: {}", req, serialize=True)
         ws.send(req)
 
-        self.ping_thread = threading.Thread(target=self.ping, args=(ws,), daemon=True)
+        self._run_next_ping(ws)
+
+    def _run_next_ping(self, ws: WebSocketApp):
+        self.ping_thread = threading.Timer(
+            TIMER_INTERVAL_SECONDS, self.ping, args=(ws,)
+        )
         self.ping_thread.start()
 
     def ping(self, ws: WebSocketApp):
-        sane = True
-        while sane and not ws.has_errored:
+        if not ws.has_errored:
             try:
                 ws.send("PING")
-                time.sleep(10)
+                self._run_next_ping(ws)
             except WebSocketConnectionClosedException as e:
                 logger.warning("Caught exception {}", e)
-                sane = False
-                break
 
     def run(self):
         self.wsapp_thread = threading.Thread(target=self.wsapp.run_forever)
@@ -171,11 +173,12 @@ class WebsocketOrderBookCapture:
 
     def stop(self):
         self.wsapp.close()
+        self.ping_thread.cancel()
         self.wsapp_thread.join()
 
 
 @logger.catch
-def run_capture() -> WebsocketOrderBookCapture:
+def run_capture() -> (WebsocketOrderBookCapture, MarketInfo):
     api_key = os.getenv("API_KEY")
     api_secret = os.getenv("API_SECRET")
     api_passphrase = os.getenv("PASSPHRASE")
@@ -196,7 +199,7 @@ def run_capture() -> WebsocketOrderBookCapture:
 
     market_connection.run()
 
-    return market_connection
+    return market_connection, market_info[0]
 
 
 if __name__ == "__main__":
