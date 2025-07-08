@@ -75,7 +75,7 @@ def run_polymarket_capture_thread():
 
 
 def fire_interrupt():
-    logger.info("firing signal to interrupt at {}")
+    logger.info("Firing signal to interrupt.")
     pid = os.getpid()
     os.kill(pid, signal.SIGUSR1)
 
@@ -87,6 +87,12 @@ def main():
     now = datetime.now()
     next_hour = now.replace(minute=59, second=59, microsecond=0)
     delay = (next_hour - now).total_seconds()  # calculate delay till next hour
+
+    if delay <= 1:
+        next_hour = (now + timedelta(hours=1)).replace(
+            minute=59, second=59, microsecond=0
+        )
+        delay = (next_hour - now).total_seconds()
 
     t1 = threading.Thread(target=run_binance_capture_thread)
     t2 = threading.Thread(target=run_polymarket_capture_thread)

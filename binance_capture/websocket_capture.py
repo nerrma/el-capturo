@@ -31,10 +31,10 @@ class WebsocketOrderBookCapture:
                 data={
                     "timestamp": datetime.now(timezone.utc),
                     "asset_name": message["s"],
-                    "bid_price": message["b"],
-                    "bid_size": message["B"],
-                    "ask_price": message["a"],
-                    "ask_size": message["A"],
+                    "bid_price": float(message["b"]),
+                    "bid_size": float(message["B"]),
+                    "ask_price": float(message["a"]),
+                    "ask_size": float(message["A"]),
                 },
             )
 

@@ -28,7 +28,8 @@ def get_hourly_market_info_for(market="bitcoin-up-or-down") -> List[MarketInfo]:
     # make slug in the form "market-{month_str}-{day}-{hour}-et"
     now = datetime.now(pytz.timezone("US/Eastern"))
 
-    now = now.replace(minute=0, second=0, microsecond=0)
+    # offset by 5 seconds for the on the hour restart edge case
+    now = (now + timedelta(seconds=5)).replace(minute=0, second=0, microsecond=0)
 
     month_str = now.strftime("%B").lower()
     day = now.day
@@ -36,7 +37,7 @@ def get_hourly_market_info_for(market="bitcoin-up-or-down") -> List[MarketInfo]:
     am_pm = now.strftime("%p").lower()
 
     slug = f"{market}-{month_str}-{day}-{hour_12}{am_pm}-et"
-    logger.debug("Generated market slug {}", slug)
+    logger.info("Generated market slug {}", slug)
 
     response = requests.get(f"{POLYMARKET_GAMMA_URL}/markets?slug={slug}")
     markets = response.json()

@@ -14,7 +14,7 @@ class ParquetWriter:
         self.buffer_size = buffer_size
         self.asset_name_to_data = defaultdict(lambda: defaultdict(list))
         self.progress_bars = {}  # store tqdm objects per asset_id
-        self.iterations = defaultdict(lambda: defaultdict(int))
+        self.iterations = defaultdict(lambda: defaultdict(lambda: 1))
 
     def __del__(self):
         for k in self.asset_name_to_data:
@@ -23,18 +23,17 @@ class ParquetWriter:
 
     def _flush_data(self, asset_name: str, data_type: str):
         logger.debug("Flushing {} Parquet data for {}", data_type, asset_name)
-        self.iterations[asset_name][data_type] += 1
         asset_data = pl.LazyFrame(self.asset_name_to_data[asset_name][data_type])
         asset_data = asset_data.collect().write_parquet(
             f"{asset_name.lower()}-{data_type.lower()}-{self.iterations[asset_name][data_type]}.parquet",
             compression="zstd",
         )
 
-        self.progress_bars[asset_name][data_type].close()
-        self.progress_bars[asset_name][data_type] = tqdm(
-            desc=f"{asset_name.lower()}-{data_type.lower()}", total=self.buffer_size
+        self.iterations[asset_name][data_type] += 1
+        self.progress_bars[asset_name][data_type].reset()
+        self.progress_bars[asset_name][data_type].set_description(
+            f"{asset_name.lower()}-{data_type.lower()}-{self.iterations[asset_name][data_type]}"
         )
-
         self.asset_name_to_data[asset_name][data_type].clear()
 
     def write(self, data_type: str, data: dict):
@@ -44,14 +43,14 @@ class ParquetWriter:
         if asset_name not in self.progress_bars:
             self.progress_bars[asset_name] = {
                 data_type: tqdm(
-                    desc=f"{asset_name.lower()}-{data_type.lower()}",
+                    desc=f"{asset_name.lower()}-{data_type.lower()}-{self.iterations[asset_name][data_type]}",
                     total=self.buffer_size,
                 )
             }
         else:
             if data_type not in self.progress_bars[asset_name]:
                 self.progress_bars[asset_name][data_type] = tqdm(
-                    desc=f"{asset_name.lower()}-{data_type.lower()}",
+                    desc=f"{asset_name.lower()}-{data_type.lower()}-{self.iterations[asset_name][data_type]}",
                     total=self.buffer_size,
                 )
 
