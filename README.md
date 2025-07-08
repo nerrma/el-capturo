@@ -34,7 +34,14 @@ PASSPHRASE = "{PASSPHRASE}"
 You can now run a Polymarket capture by doing:
 
 ```shell
-$ uv run python -m polymarket.websocket_capture
+$ uv run python capture.py
 ```
 
-This will capture market data for the hourly Bitcoin market by default and output them to Parquet files named `cap-{seq_no}-{up|down}.parquet` where the sequence numbers are in order for the `up` and `down` tokens. Refer to [polymarket/market_info.py](polymarket/market_info.py) for info on how the information for the market is generated. The important thing here are the `token_ids` which we listen to for information on the relevant market.
+This will capture market data for the hourly Bitcoin market by default and output them to Parquet files named `{asset_name}-{capture_type}-{seq_no}.parquet` where:
+- `asset_name` can be a polymarket token name or cryptocurrency name
+- `capture_type` is an 'orderbook' or 'trade' capture
+- `seq_no` the sequence number in the capture series
+
+These will be stored in the `data/{market_slug}` directory for the relevant market.
+
+Refer to [polymarket/market_info.py](polymarket/market_info.py) for info on how the information for the market is generated. The important thing here are the `token_ids` which we listen to for information on the relevant market.
