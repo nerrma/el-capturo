@@ -31,7 +31,7 @@ PASSPHRASE = "{PASSPHRASE}"
 
 ### Running a capture
 
-You can now run a Polymarket capture by doing:
+You can now run a Polymarket and Binance capture by doing:
 
 ```shell
 $ uv run python capture.py
