@@ -46,7 +46,7 @@ def run_capture() -> SpotWebsocketStreamClient:
         on_message=client.on_book_ticker, on_close=client.on_close
     )
 
-    binance_connection.book_ticker(symbol="btcusdc")
+    binance_connection.book_ticker(symbol="btcusdt")
 
     return binance_connection
 

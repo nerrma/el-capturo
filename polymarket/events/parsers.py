@@ -23,7 +23,7 @@ def parse_change(change: dict) -> Change:
 
 
 def convert_timestamp(timestamp: str) -> datetime:
-    return datetime.datetime.utcfromtimestamp(int(timestamp) / 1000)
+    return datetime.datetime.fromtimestamp(int(timestamp) / 1000, datetime.UTC)
 
 
 def parse_book_event(event: dict) -> BookEvent:

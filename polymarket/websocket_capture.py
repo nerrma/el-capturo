@@ -3,7 +3,6 @@
 import json
 import os
 import threading
-import time
 from collections import defaultdict
 from datetime import datetime, timezone
 from enum import Enum
@@ -51,14 +50,12 @@ class WebsocketOrderBookCapture:
         self.ping_thread = None
 
     def on_message(self, ws: WebSocketApp, message: str):
-        logger.debug("Got message: {}", message)
-
         if message == "PONG":
             logger.debug("Got PONG")
             return
 
         messages = json.loads(message)
-        logger.debug("evaluated to {}", messages)
+        logger.debug("received message {}", messages)
 
         for message in messages:
             match message["event_type"]:
