@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from collections import OrderedDict
+from loguru import logger
 from polymarket.events.types import (
     Event,
     BookEvent,
@@ -30,12 +31,30 @@ class Orderbook:
                 self.asks = OrderedDict(sorted(self.asks.items()))
             case PriceChangeEvent(asset=_, changes=changes, timestamp=_):
                 for c in changes:
-                    if c.side == Side.BUY:
-                        self.bids[c.order.price] = c.order
-                    elif c.side == Side.SELL:
-                        self.asks[c.order.price] = c.order
+                    if c.side == Side.BUY and c.order.price in self.bids:
+                        if c.order.size == 0:
+                            self.bids.pop(c.order.price)
+                        else:
+                            self.bids[c.order.price] = c.order
+                    elif c.side == Side.SELL and c.order.price in self.asks:
+                        if c.order.size == 0:
+                            self.asks.pop(c.order.price)
+                        else:
+                            self.asks[c.order.price] = c.order
                 self.bids = OrderedDict(sorted(self.bids.items(), reverse=True))
                 self.asks = OrderedDict(sorted(self.asks.items()))
+
+        # assert list(self.bids.values())[0].price < list(self.asks.values())[0].price
+        if (
+            len(list(self.bids.values()))
+            and len(list(self.asks.values()))
+            and list(self.bids.values())[0].price >= list(self.asks.values())[0].price
+        ):
+            logger.warning(
+                "Crossed book! with bids: {}, asks: {}",
+                list(self.bids.values())[:3],
+                list(self.asks.values())[:3],
+            )
 
     def serialize(self, levels=5):
         return [
