@@ -11,9 +11,11 @@ from loguru import logger
 from binance_capture.websocket_capture import run_capture as run_binance_capture
 from config_manager import load_logging_config
 from polymarket.websocket_capture import run_capture as run_polymarket_capture
+from hyperliquid_capture.websocket_capture import run_capture as run_hyperliquid_capture
 
 binance_connection = None
 polymarket_connection = None
+hyperliquid_connection = None
 market_info = None
 terminate = False
 timing_thread = None
@@ -29,6 +31,13 @@ def signal_handler(sig_num, _):
         binance_connection.stop()
     else:
         logger.warning("Binance connection not found!")
+
+    global hyperliquid_connection
+    if hyperliquid_connection is not None:
+        logger.debug("Closing hyperliquid connection.")
+        hyperliquid_connection.stop()
+    else:
+        logger.warning("Hyperliquid connection not found!")
 
     global polymarket_connection
     if polymarket_connection is not None:
@@ -67,6 +76,11 @@ def run_binance_capture_thread():
     binance_connection = run_binance_capture()
     logger.debug("Got binance_connection {}", binance_connection)
 
+def run_hyperliquid_capture_thread():
+    global hyperliquid_connection
+    hyperliquid_connection = run_hyperliquid_capture()
+    logger.debug("Got hyperliquid_connection {}", hyperliquid_connection)
+
 
 def run_polymarket_capture_thread():
     global polymarket_connection, market_info
@@ -96,6 +110,7 @@ def main():
 
     t1 = threading.Thread(target=run_binance_capture_thread)
     t2 = threading.Thread(target=run_polymarket_capture_thread)
+    t3 = threading.Thread(target=run_hyperliquid_capture_thread)
 
     global timing_thread
     timing_thread = threading.Timer(delay, fire_interrupt)
@@ -106,10 +121,12 @@ def main():
 
     t1.start()
     t2.start()
+    t3.start()
     timing_thread.start()
 
     t1.join()
     t2.join()
+    t3.join()
     timing_thread.join()
 
 

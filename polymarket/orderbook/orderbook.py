@@ -44,7 +44,6 @@ class Orderbook:
                 self.bids = OrderedDict(sorted(self.bids.items(), reverse=True))
                 self.asks = OrderedDict(sorted(self.asks.items()))
 
-        # assert list(self.bids.values())[0].price < list(self.asks.values())[0].price
         if (
             len(list(self.bids.values()))
             and len(list(self.asks.values()))
