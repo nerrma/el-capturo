@@ -11,6 +11,7 @@ from functools import reduce
 from config_manager import load_logging_config
 from constants import HYPERLIQUID_WSS_URL, TIMER_INTERVAL_SECONDS
 from loguru import logger
+from utils import convert_timestamp
 from websocket import WebSocketApp, WebSocketConnectionClosedException
 from writers.parquet_writer import ParquetWriter
 
@@ -33,8 +34,7 @@ class WebsocketOrderBookCapture:
         )
         self.orderbooks = defaultdict(dict)  # orderbooks per coin
         self.exit_code = 0
-        self.writer = ParquetWriter(buffer_size=10)
-        self.ping_thread = None
+        self.writer = ParquetWriter(buffer_size=1e3)
 
     def on_message(self, ws: WebSocketApp, message: str):
         if message == "PONG":
@@ -43,6 +43,10 @@ class WebsocketOrderBookCapture:
 
         data = json.loads(message)
         logger.debug("Received data: {}", data)
+
+        if data["channel"] == "subscriptionResponse":
+            logger.debug("Sucessfully subscribed to hyperliquid feed")
+            return
 
         if data["channel"] != self.channel_type.value:
             logger.warning("Unknown channel: {}", data["channel"])
@@ -55,11 +59,11 @@ class WebsocketOrderBookCapture:
             self.orderbooks[coin] = {"bids": [], "asks": []}
 
         self.orderbooks[coin]["bids"] = [
-            {"price": b["px"], "size": b["sz"]}
+            {"price": float(b["px"]), "size": float(b["sz"])}
             for i, b in enumerate(levels[0], start=1)
         ]
         self.orderbooks[coin]["asks"] = [
-            {"price": a["px"], "size": a["sz"]}
+            {"price": float(a["px"]), "size": float(a["sz"])}
             for i, a in enumerate(levels[1], start=1)
         ]
 
@@ -68,7 +72,7 @@ class WebsocketOrderBookCapture:
             data_type="orderbook",
             data={
                 "timestamp": datetime.now(timezone.utc),
-                "exchange_timestamp": data["data"]["time"],
+                "exchange_timestamp": convert_timestamp(data["data"]["time"]),
                 "asset_name": coin,
             }
             | reduce(lambda x, y: x | y, serialized_book, {}),
@@ -81,9 +85,6 @@ class WebsocketOrderBookCapture:
 
     def on_close(self, ws, close_status_code, close_msg):
         logger.debug("Closing connection.")
-
-        if self.ping_thread:
-            self.ping_thread.cancel()
 
         del self.writer
 
@@ -107,31 +108,15 @@ class WebsocketOrderBookCapture:
         logger.debug("Sending websocket request: {}", req, serialize=True)
         ws.send(req)
 
-        # self._run_next_ping(ws)
-
-    def _run_next_ping(self, ws):
-        self.ping_thread = threading.Timer(
-            TIMER_INTERVAL_SECONDS, self.ping, args=(ws,)
-        )
-        self.ping_thread.start()
-
-    def ping(self, ws: WebSocketApp):
-        if not ws.has_errored:
-            try:
-                ws.send("PING")
-                self._run_next_ping(ws)
-            except WebSocketConnectionClosedException as e:
-                logger.warning("Caught exception {}", e)
-
-    def serialize(self, coin):
+    def serialize(self, coin, levels=10):
         return [
             *[
                 {f"bid_{i + 1}_price": b["price"], f"bid_{i + 1}_size": b["size"]}
-                for i, b in enumerate(self.orderbooks[coin]["bids"])
+                for i, b in enumerate(self.orderbooks[coin]["bids"][:levels])
             ],
             *[
                 {f"ask_{i + 1}_price": a["price"], f"ask_{i + 1}_size": a["size"]}
-                for i, a in enumerate(self.orderbooks[coin]["asks"])
+                for i, a in enumerate(self.orderbooks[coin]["asks"][:levels])
             ],
         ]
 
@@ -141,7 +126,6 @@ class WebsocketOrderBookCapture:
 
     def stop(self):
         self.wsapp.close()
-        self.ping_thread.cancel()
         self.wsapp_thread.join()
 
 

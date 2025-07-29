@@ -8,7 +8,8 @@ from polymarket.events.types import (
     PriceChangeEvent,
     LastTradePrice,
 )
-import datetime
+
+from utils import convert_timestamp
 
 
 def parse_order(order: dict) -> Order:
@@ -20,10 +21,6 @@ def parse_change(change: dict) -> Change:
         order=Order(price=float(change["price"]), size=float(change["size"])),
         side=Side(change["side"]),
     )
-
-
-def convert_timestamp(timestamp: str) -> datetime:
-    return datetime.datetime.fromtimestamp(int(timestamp) / 1000, datetime.UTC)
 
 
 def parse_book_event(event: dict) -> BookEvent:
